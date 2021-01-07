@@ -5,87 +5,66 @@ from datetime import *
 from functions import *
 from Position import Position
 from matplotlib import pyplot
+import sys, getopt
 
-today = str(datetime.today()).split()[0]
+def main(argv):
 
-#most_recent_value = 64733.86-7837.65
+    #transactions = pandas.read_csv('C:/Users/nbbas/Documents/investment_tracker/TransactionHistory.csv', sep=',', header=0)
+    transactions = pandas.read_csv('TransactionHistory.csv', sep=',', header=0)
 
-spy = yf.Ticker("SPY")
-lastclose = spy.history(period="1d")
-lastclosedate = str(lastclose.index[-1]).split()[0]
+    eventhistory = defaultdict(list)
+    positions = {}
+    allevents = []
 
-transactions = pandas.read_csv('C:/Users/nbbas/Documents/STONKS/TransactionHistory.csv', sep=',', header=0)
+    #Store Transaction Data in transactions(a dictionary of string(ticker)->Position object)
+    #Read from TransactionHistory.csv
+    for idx, row in transactions.iterrows():
+        event = row[1:]
+        eventhistory[row["TICKER"]].append(event)
+        allevents.append(event)
+        if row["TICKER"] not in positions :
+            positions[row["TICKER"]] = Position(row["TICKER"])
+        positions[row["TICKER"]].transactionhistory.append(event)
 
-eventhistory = defaultdict(list)
-positions = {}
-allevents = []
+    today = datetime.today().strftime('%Y-%m-%d')
+    file_name = "ar_summary_" + today + ".txt"
+    returns_summary = open(file_name, "w+")
 
-#Store Transaction Data in transactions(a dictionary of string(ticker)->Position object)
-#Read from TransactionHistory.csv
-for idx, row in transactions.iterrows():
-    event = row[1:]
-    eventhistory[row["TICKER"]].append(event)
-    allevents.append(event)
-    if row["TICKER"] not in positions :
-        positions[row["TICKER"]] = Position(row["TICKER"])
-    positions[row["TICKER"]].transactionhistory.append(event)
-        
-total_value = 0
+    portfolio_return = 0
+    portfolio_value = 0
 
-today = datetime.today().strftime('%Y-%m-%d')
-file_name = "ar_summary_" + today + ".txt"
-returns_summary = open(file_name, "w+")
+    #compute and print cost basis, average sale price,annualized return
+    for position in positions.values():
+        ticker = position.ticker
+        print("TICKER: " + ticker)
 
-total_return = 0
+        position.compute_stats()
+        portfolio_value = portfolio_value + position.current_val
+        portfolio_return = portfolio_return + position.total_ret
 
-#compute and print cost basis, average sale price,annualized return
-for ticker, events in eventhistory.items() :
-    print("Cost Basis for " + ticker + ": " + str(cost_basis(events)))
-    avg_sale = avg_sale_price(events)
+        print("Cost Basis for " + ticker + ": " + '${:,.2f}'.format(position.cost_bas))
+        print("Current Value for " + ticker + ": " + '${:,.2f}'.format(position.current_val))
+        print("Annualized Return for " + ticker + ": " + position.annualized_ret)
+        print("Total Return for " + ticker + ": " + '${:,.2f}'.format(position.total_ret))
 
-    if(avg_sale == 0):
-        print("No shares sold")
-
-    else :
-        print("Average sale price for " + ticker + ": " + str(avg_sale))
-
-    #current_value = get_current_value(ticker, events)
-    value = positions[ticker].current_value()
-
-    print("Calculating Annual Return for " + ticker)
-
-    ticker_ar = annualized_return(events,value)
-    
-    print("Current value: " + '${:,.2f}'.format(value))
-    print("Annualized Return for " + ticker + ": " + ticker_ar)
+        returns_summary.write(ticker + " annualized return: " + position.annualized_ret + "\n")
+        returns_summary.write(ticker + " total return: " + '${:,.2f}'.format(position.total_ret) + "\n")
 
 
-    ticker_return = positions[ticker].total_return()
-    total_return = total_return + ticker_return
-    print("Total Profit/Loss for " + ticker + ": " + '${:,.2f}'.format(ticker_return))
+    #for i in chron_order:
+    #    print(i)
+    total_ar = annualized_return(allevents,portfolio_value)
+    print("Annualized return: " + total_ar)
+    print("Total Portfolio Returns: " + '${:,.2f}'.format(portfolio_return))
 
-    total_value = total_value + value
+    returns_summary.write("Total annualized return: " + total_ar + "\n")
+    returns_summary.write("Total return: " + '${:,.2f}'.format(portfolio_return))
+    returns_summary.close()
 
-    #write returns to file
-    returns_summary.write(ticker + " annualized return: " + ticker_ar + "\n")
-    returns_summary.write(ticker + " total return: " + '${:,.2f}'.format(ticker_return) + "\n")
-    
-    #stockquantity
-    #costbasis
-    #for event in events :
+    transactiondate = datetime.strptime(row["DATE"], '%m/%d/%Y').date()
 
 
-#for i in chron_order:
-#    print(i)
-total_ar = annualized_return(allevents,total_value)
-print("Annualized return: " + total_ar)
-print("Total Portfolio Returns: " + '${:,.2f}'.format(total_return))
+    #print(eventhistory['AMZN'])
 
-returns_summary.write("Total annualized return: " + total_ar + "\n")
-returns_summary.write("Total return: " + '${:,.2f}'.format(total_return))
-returns_summary.close()
-
-transactiondate = datetime.strptime(row["DATE"], '%m/%d/%Y').date()
-
-
-#print(eventhistory['AMZN'])
+if __name__ == "__main__":
+    main(sys.argv[1:])

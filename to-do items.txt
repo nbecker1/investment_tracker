@@ -1,0 +1,12 @@
+create functions to:
+    compare performance against another ticker with the same contributions over time
+
+    compute value with dividends not reinvested
+
+    produce theoretical returns based on consistent purchases
+
+    scrape new trade data from my trading account
+
+add compare flag to compare performance against tickers(i.e. VOO)
+
+create a repo?
