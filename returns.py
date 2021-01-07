@@ -5,9 +5,23 @@ from datetime import *
 from functions import *
 from Position import Position
 from matplotlib import pyplot
-import sys, getopt
+import sys
+from argparse import ArgumentParser
 
 def main(argv):
+
+    #handle command line options
+    parser = ArgumentParser()
+    parser.add_argument("-c", "--compare", type=str, help='Ticker to compare against portfolio')
+    
+    args = vars(parser.parse_args())
+
+    if args["compare"] :
+        compare_ticker = args["compare"]
+
+    spy = yf.Ticker("SPY")
+    lastclose = spy.history(period="1d")
+    lastclosedate = str(lastclose.index[-1]).split()[0]
 
     #transactions = pandas.read_csv('C:/Users/nbbas/Documents/investment_tracker/TransactionHistory.csv', sep=',', header=0)
     transactions = pandas.read_csv('TransactionHistory.csv', sep=',', header=0)
@@ -40,15 +54,15 @@ def main(argv):
 
         position.compute_stats()
         portfolio_value = portfolio_value + position.current_val
-        portfolio_return = portfolio_return + position.total_ret
+        portfolio_return = portfolio_return + position.position_ret
 
         print("Cost Basis for " + ticker + ": " + '${:,.2f}'.format(position.cost_bas))
         print("Current Value for " + ticker + ": " + '${:,.2f}'.format(position.current_val))
         print("Annualized Return for " + ticker + ": " + position.annualized_ret)
-        print("Total Return for " + ticker + ": " + '${:,.2f}'.format(position.total_ret))
+        print("Total Return for " + ticker + ": " + '${:,.2f}'.format(position.position_ret))
 
         returns_summary.write(ticker + " annualized return: " + position.annualized_ret + "\n")
-        returns_summary.write(ticker + " total return: " + '${:,.2f}'.format(position.total_ret) + "\n")
+        returns_summary.write(ticker + " total return: " + '${:,.2f}'.format(position.position_ret) + "\n")
 
 
     #for i in chron_order:
@@ -64,7 +78,32 @@ def main(argv):
     transactiondate = datetime.strptime(row["DATE"], '%m/%d/%Y').date()
 
 
-    #print(eventhistory['AMZN'])
+    #compare to compare ticker
+    if compare_ticker:
+        ticker = yf.Ticker(compare_ticker)
+        history = ticker.history(period="max")
+
+        compare_position = Position(compare_ticker)
+
+        #hypothetical_events = []
+        for event in allevents:
+            trade_cost = event["PRICE"] * event["QUANTITY"]
+            trade_date = datetime.strptime(event["DATE"], '%m/%d/%Y').strftime('%Y-%m-%d')
+            unit_cost = history.loc[trade_date]["Close"]
+
+            new_event = {}
+            new_event["DATE"] = event["DATE"]
+            new_event["ACTION"] = event["ACTION"]
+            new_event["PRICE"] = unit_cost
+            new_event["QUANTITY"] = trade_cost / unit_cost
+            
+            compare_position.transactionhistory.append(new_event)
+
+        comparative_return = compare_position.total_return()
+        ann_ret = annualized_return(compare_position.transactionhistory,compare_position.current_value())
+        print("Comparative annualized return for " + compare_ticker + ": " + ann_ret)
+        print("Comparative total return for " + compare_ticker + ": " + '${:,.2f}'.format(comparative_return))
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

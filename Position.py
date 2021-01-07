@@ -21,13 +21,13 @@ class Position:
             self.price = float(input("Enter current share price: "))
         self.cost_bas = 0
         self.current_val = 0
-        self.total_ret = 0
+        self.position_ret = 0
         self.annualized_ret = 0
 
     def compute_stats(self):
         self.cost_bas = self.cost_basis()
         self.current_val = self.current_value()
-        self.total_ret = self.total_return()
+        self.position_ret = self.total_return()
         self.annualized_ret = annualized_return(self.transactionhistory, self.current_val)
         self.current_shares_held = self.current_share_count()
 
